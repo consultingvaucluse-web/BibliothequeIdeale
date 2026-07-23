@@ -39,4 +39,37 @@ class MainActivity : Activity() {
         webView.settings.javaScriptEnabled = true
         // domStorageEnabled est INDISPENSABLE : c'est ce qui permet aux avis
         // des lecteurs (localStorage) de fonctionner dans l'app.
-        webView.settings.domStora
+        webView.settings.domStorageEnabled = true
+
+        webView.webViewClient = object : WebViewClient() {
+            // Le WebView natif d'Android gère mal les service workers
+            // (contrairement à Chrome, utilisé par la version PWABuilder).
+            // On bloque volontairement le chargement de sw.js : l'app étant
+            // déjà native, on n'a pas besoin de la couche PWA hors-ligne, et
+            // ça évite un bug où le WebView sert le mauvais fichier en cache.
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                val url = request?.url?.toString() ?: ""
+                if (url.endsWith("sw.js")) {
+                    return WebResourceResponse("application/javascript", "utf-8", null)
+                }
+                return super.shouldInterceptRequest(view, request)
+            }
+        }
+        webView.webChromeClient = WebChromeClient()
+        webView.loadUrl(siteUrl)
+    }
+
+    // Le bouton "retour" navigue dans l'historique de la page plutôt que de
+    // fermer directement l'application.
+    override fun onBackPressed() {
+        if (::webView.isInitialized && webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
+        }
+    }
+}
